@@ -1,45 +1,76 @@
-
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>تأكيد البريد | راوس</title>
-  <style>
-    body {
-      margin: 0;
-      font-family: Tahoma, Arial, sans-serif;
-      background: #f5f7fa;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-    }
-    .card {
-      background: white;
-      padding: 36px 24px;
-      margin: 20px;
-      border-radius: 20px;
-      text-align: center;
-      max-width: 420px;
-      box-shadow: 0 8px 30px #00000012;
-    }
-    .check { font-size: 64px; color: #16a34a; }
-    h1 { font-size: 24px; color: #172033; }
-    p { font-size: 17px; line-height: 2; color: #555; }
-    .brand { color: #2563eb; font-weight: bold; }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="rawis-confirmation-version" content="2026-10-19.1">
+<title>تأكيد البريد الإلكتروني | راوس</title>
+<style>
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f5f7fb;font-family:Tahoma,Arial,sans-serif;color:#172b4d;padding:20px}.card{max-width:480px;width:100%;background:white;padding:42px 25px;border-radius:22px;text-align:center;box-shadow:0 12px 35px #12264d14}.icon{width:76px;height:76px;display:grid;place-items:center;border-radius:50%;background:#edf2f7;color:#526579;font-size:44px;margin:0 auto 22px}.success .icon{background:#e6f8ee;color:#179d5d}.error .icon{background:#fff0e8;color:#a64018}h1{font-size:25px;margin:0 0 15px}p{font-size:18px;line-height:1.9;margin:0}.brand{font-size:20px;font-weight:700;color:#148c64;margin-bottom:22px}.note{margin-top:20px;color:#65718a;font-size:14px}button,a{display:inline-block;margin-top:24px;padding:13px 24px;border:0;border-radius:12px;background:#148c64;color:white;text-decoration:none;font:inherit;cursor:pointer}[hidden]{display:none!important}
+</style>
 </head>
-<body>
-  <div class="card">
-    <div class="check">✓</div>
-    <h1>تم تأكيد بريدك الإلكتروني بنجاح!</h1>
-    <p>
-      أهلاً بك في <span class="brand">راوس</span><br>
-      ارجع الآن إلى تطبيق راوس وسجّل الدخول
-      باستخدام بريدك الإلكتروني وكلمة المرور.
-    </p>
-  </div>
+<body><main class="card" id="card" aria-live="polite"><div class="brand">راوس | RAWIS</div><div class="icon" id="icon" aria-hidden="true">…</div><h1 id="title">جارٍ التحقق من تأكيد البريد</h1><p id="message">يرجى الانتظار لحظة.</p><button id="retry" hidden>إعادة التحقق</button><a id="open-app" href="rawis://login-callback/" hidden>فتح تطبيق راوس</a><div class="note">إذا لم يفتح التطبيق، افتحه يدوياً وسجّل الدخول.</div><noscript><p>فعّل JavaScript للتحقق من نتيجة التأكيد. يمكنك أيضاً الرجوع إلى تطبيق راوس ومحاولة تسجيل الدخول.</p></noscript></main>
+<script>
+'use strict';
+(async function () {
+  const origin = 'https://ojwkmhjopljsicrxnmts.supabase.co';
+  const apiKey = 'sb_publishable_aIO4znnT9XEXv-fOwS2U1w_afRydMuA';
+  const fragment = new URLSearchParams(location.hash.slice(1));
+  const query = new URLSearchParams(location.search);
+  let accessToken = fragment.get('access_token');
+  // Keep credentials only in memory, never in storage, logs or the address bar.
+  history.replaceState(null, '', location.pathname);
+  const el = id => document.getElementById(id);
+  function show(state, title, message) {
+    el('card').className = 'card ' + state;
+    el('icon').textContent = state === 'success' ? '✓' : state === 'error' ? '!' : '…';
+    el('title').textContent = title;
+    el('message').textContent = message;
+    el('open-app').hidden = state !== 'success';
+    el('retry').hidden = true;
+  }
+  if (fragment.has('error') || fragment.has('error_code') || query.has('error') || query.has('error_code')) {
+    accessToken = null;
+    show('error', 'تعذّر استخدام رابط التأكيد', 'قد يكون الرابط منتهياً أو سبق استخدامه. إذا أكّدت بريدك سابقاً، جرّب تسجيل الدخول. وإلا اطلب رسالة تأكيد جديدة من التطبيق وافتح أحدث رسالة.');
+    return;
+  }
+  if (!accessToken || fragment.get('type') !== 'signup') {
+    accessToken = null;
+    show('error', 'افتح رابط التأكيد من بريدك', 'فتح هذه الصفحة وحده لا يؤكد الحساب. افتح أحدث رسالة تأكيد أرسلها راوس واضغط رابط التأكيد داخلها.');
+    return;
+  }
+  async function verify() {
+    show('', 'جارٍ التحقق من تأكيد البريد', 'يرجى الانتظار لحظة.');
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    try {
+      const response = await fetch(origin + '/auth/v1/user', {
+        headers: { apikey: apiKey, Authorization: 'Bearer ' + accessToken },
+        cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer', signal: controller.signal
+      });
+      if (response.status === 401 || response.status === 403) {
+        accessToken = null;
+        show('error', 'تعذّر التحقق من الجلسة', 'قد تكون جلسة الرابط منتهية. جرّب تسجيل الدخول إلى راوس، أو اطلب رسالة تأكيد جديدة إذا بقي الحساب غير مؤكّد.');
+        return;
+      }
+      if (!response.ok) throw new Error('verification_unavailable');
+      const user = await response.json();
+      if (!user.id || !user.email || !user.email_confirmed_at) {
+        accessToken = null;
+        show('error', 'لم يتم تأكيد البريد', 'ارجع إلى التطبيق واطلب رسالة تأكيد جديدة، ثم افتح أحدث رابط.');
+        return;
+      }
+      accessToken = null;
+      show('success', 'تم تأكيد بريدك الإلكتروني بنجاح', 'ارجع إلى تطبيق راوس وسجّل الدخول باستخدام بريدك الإلكتروني وكلمة المرور.');
+    } catch (_) {
+      show('error', 'تعذّر الاتصال للتحقق', 'تحقق من اتصال الإنترنت ثم أعد المحاولة. قد يكون بريدك تأكد بالفعل؛ يمكنك أيضاً محاولة تسجيل الدخول إلى التطبيق.');
+      el('retry').hidden = false;
+    } finally { clearTimeout(timeout); }
+  }
+  el('retry').addEventListener('click', verify);
+  await verify();
+})();
+</script>
 </body>
 </html>
-
